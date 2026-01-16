@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Welcome {{ username }}</h3>
+<p>Enter flow features to predict botnet activity.</p>
+
+<form method="POST" action="/predict" class="row">
+  {% for f in ['dt','switch','pktcount','bytecount','dur','dur_nsec','tot_dur','flows','packetins','pktperflow','byteperflow','pktrate','Pairflow','port_no','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps'] %}
+  <div class="col-md-3 mb-2">
+    <input class="form-control" type="number" step="any" name="{{ f }}" placeholder="{{ f }}" required>
+  </div>
+  {% endfor %}
+  <div class="col-12 mt-3">
+    <button class="btn btn-primary w-100">Predict</button>
+  </div>
+</form>
+
+{% if prediction %}
+<hr>
+<h4 class="mt-3">Prediction Result</h4>
+<p><b>LSTM+SVM:</b> {{ pred1|round(4) }} | <b>CNN+BiGRU:</b> {{ pred2|round(4) }}</p>
+<h5 class="text-{{ 'danger' if 'Botnet' in prediction else 'success' }}">{{ prediction }}</h5>
+{% endif %}
+
+<hr>
+<h4>Model Performance Comparison</h4>
+<img src="{{ url_for('static', filename='metrics.png') }}" class="img-fluid">
+{% endblock %}
