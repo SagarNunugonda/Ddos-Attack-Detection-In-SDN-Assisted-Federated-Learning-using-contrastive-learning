@@ -1,27 +1,132 @@
 {% extends 'base.html' %}
 {% block content %}
 <h3>Welcome {{ username }}</h3>
-<p>Enter flow features to predict botnet activity.</p>
+<p>Select a network type and enter flow features to predict botnet activity.</p>
 
-<form method="POST" action="/predict" class="row">
-  {% for f in ['dt','switch','pktcount','bytecount','dur','dur_nsec','tot_dur','flows','packetins','pktperflow','byteperflow','pktrate','Pairflow','port_no','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps'] %}
-  <div class="col-md-3 mb-2">
-    <input class="form-control" type="number" step="any" name="{{ f }}" placeholder="{{ f }}" required>
+<!-- Network Type Selection -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h5>Network Configuration</h5>
   </div>
-  {% endfor %}
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <label for="network_type" class="form-label"><b>Network Type:</b></label>
+        <select id="network_type" class="form-select" onchange="updateFormFields()">
+          <option value="sdn" selected>SDN-Assisted Network</option>
+          <option value="traditional">Traditional Network</option>
+          <option value="iot">IoT Network</option>
+          <option value="hybrid">Hybrid Network</option>
+        </select>
+        <small class="text-muted d-block mt-2" id="network_desc">Recommended for Software-Defined Networks with centralized control</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Form for input features -->
+<form method="POST" action="/predict" id="predictionForm" class="row rounded p-3" style="background-color: #f8f9fa;">
+  <input type="hidden" name="network_type" id="hidden_network_type" value="sdn">
+  
+  <!-- Features container -->
+  <div id="features_container" class="w-100">
+    <!-- Features will be dynamically inserted here -->
+  </div>
+  
   <div class="col-12 mt-3">
-    <button class="btn btn-primary w-100">Predict</button>
+    <button type="submit" class="btn btn-primary w-100">Predict &nbsp;<i class="fas fa-brain"></i></button>
   </div>
 </form>
 
 {% if prediction %}
 <hr>
-<h4 class="mt-3">Prediction Result</h4>
-<p><b>LSTM+SVM:</b> {{ pred1|round(4) }} | <b>CNN+BiGRU:</b> {{ pred2|round(4) }}</p>
-<h5 class="text-{{ 'danger' if 'Botnet' in prediction else 'success' }}">{{ prediction }}</h5>
+<div class="alert alert-{{ 'danger' if 'Botnet' in prediction else 'success' }} mt-3" role="alert">
+  <h4 class="alert-heading">Prediction Result</h4>
+  <p><b>Network Type:</b> {{ network_name }}</p>
+  {% if pred1 is not none %}
+  <p><b>LSTM+SVM Score:</b> {{ "%.4f"|format(pred1) }}</p>
+  {% endif %}
+  {% if pred2 is not none %}
+  <p><b>TCN+BiGRU Score:</b> {{ "%.4f"|format(pred2) }}</p>
+  {% endif %}
+  {% if pred3 is not none %}
+  <p><b>XGBoost Score:</b> {{ "%.4f"|format(pred3) }}</p>
+  {% endif %}
+  <h5 class="mt-3">{{ prediction }}</h5>
+  <p class="mb-0"><b>Confidence:</b> {{ "%.2f"|format(confidence) }}%</p>
+</div>
 {% endif %}
 
 <hr>
 <h4>Model Performance Comparison</h4>
 <img src="{{ url_for('static', filename='metrics.png') }}" class="img-fluid">
+
+<script>
+const networkConfigs = {
+  sdn: {
+    name: 'SDN-Assisted Network',
+    description: 'Recommended for Software-Defined Networks with centralized control',
+    features: ['dt','switch','pktcount','bytecount','dur','dur_nsec','tot_dur','flows','packetins','pktperflow','byteperflow','pktrate','Pairflow','port_no','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps']
+  },
+  traditional: {
+    name: 'Traditional Network',
+    description: 'Recommended for Conventional routed networks',
+    features: ['pktcount','bytecount','dur','dur_nsec','tot_dur','flows','pktperflow','byteperflow','pktrate','src_port','dst_port','protocol','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps']
+  },
+  iot: {
+    name: 'IoT Network',
+    description: 'Recommended for Internet of Things networks with constrained devices',
+    features: ['pktcount','bytecount','dur','flows','pktperflow','byteperflow','pktrate','device_id','signal_strength','battery_level','error_rate','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps']
+  },
+  hybrid: {
+    name: 'Hybrid Network',
+    description: 'Recommended for Mixed SDN and Traditional network architecture',
+    features: ['pktcount','bytecount','dur','dur_nsec','tot_dur','flows','packetins','pktperflow','byteperflow','pktrate','port_no','tx_bytes','rx_bytes','tx_kbps','rx_kbps','tot_kbps','routing_type']
+  }
+};
+
+function updateFormFields() {
+  const networkType = document.getElementById('network_type').value;
+  const config = networkConfigs[networkType];
+  
+  // Update description
+  document.getElementById('network_desc').textContent = config.description;
+  
+  // Update hidden input
+  document.getElementById('hidden_network_type').value = networkType;
+  
+  // Generate form fields
+  const container = document.getElementById('features_container');
+  container.innerHTML = '';
+  
+  config.features.forEach((feature, index) => {
+    const div = document.createElement('div');
+    div.className = 'col-md-3 mb-2';
+    div.innerHTML = `
+      <input class="form-control" type="number" step="any" name="${feature}" 
+             placeholder="${feature}" title="${feature}" required>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Initialize form on page load
+document.addEventListener('DOMContentLoaded', function() {
+  updateFormFields();
+});
+</script>
+
+<style>
+.alert-danger {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+.alert-success {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+}
+</style>
+
 {% endblock %}
